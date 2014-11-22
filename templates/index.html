@@ -86,5 +86,14 @@
             </a>
         </li>{% endfor %}</ul>
       </div>
+
+      <div class="list">
+        <h3>Songs</h3>
+        <ul class="friends">{% for song in songs %}
+        <li>
+	<a> {{musician}},{{song}}
+            </a>
+        </li>{% endfor %}</ul>
+      </div>
     </section>
 {% endblock%}
