@@ -89,9 +89,9 @@
 
       <div class="list">
         <h3>Songs</h3>
-        <ul class="friends">{% for song in songs %}
+        <ul class="friends">{% for song in songs.data %}
         <li>
-	<a> {{musician}},{{song}}
+	<a> {{song}}
             </a>
         </li>{% endfor %}</ul>
       </div>
