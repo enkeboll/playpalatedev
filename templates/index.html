@@ -89,10 +89,10 @@
 
       <div class="list">
         <h3>Songs</h3>
-        <ul class="songs">{% for song in songs.data %}
+        <ul class="songs">
         <li>
-	{{song.data}} 
-        </li>{% endfor %}</ul>
+	{% songs %}
+        </li></ul>
       </div>
     </section>
 {% endblock%}
