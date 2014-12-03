@@ -180,7 +180,6 @@ def index():
         photos = fb_call('me/photos',
                          args={'access_token': access_token, 'limit': 16})
         songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':30})
-	songs = songs["data"]
         redir = get_home() + 'close/'
         POST_TO_WALL = ("https://www.facebook.com/dialog/feed?redirect_uri=%s&"
                         "display=popup&app_id=%s" % (redir, FB_APP_ID))
