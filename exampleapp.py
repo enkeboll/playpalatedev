@@ -25,8 +25,8 @@ def oauth_login_url(preserve_path=True, next_url=None):
                     "?client_id=%s&redirect_uri=%s" %
                     (app.config['FB_APP_ID'], get_home()))
 
-    #if app.config['FBAPI_SCOPE']:
-    fb_login_uri += "&scope=%s" % ",".join(app.config['FBAPI_SCOPE'])
+    if app.config['FBAPI_SCOPE']:
+        fb_login_uri += "&scope=%s" % ",".join(app.config['FBAPI_SCOPE'])
     return fb_login_uri
 
 
