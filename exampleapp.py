@@ -209,6 +209,10 @@ def get_channel():
     return render_template('channel.html')
 
 
+@app.route('/privacy.html', methods=['GET', 'POST'])
+def privacy():
+    return render_template('privacy.html')
+
 @app.route('/close/', methods=['GET', 'POST'])
 def close():
     return render_template('close.html')
