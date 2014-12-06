@@ -160,6 +160,32 @@ def get_token():
         return token
 
 
+def song_data(songs):
+        if "error" in songs:
+                print songs["error"]
+                return
+
+        moreSongsURI = songs["paging"]["next"]
+
+        list_song_dicts = songs["data"]
+
+        counter = 0
+        song_dict = {}
+        for entry in list_song_dicts:
+
+                song_info = entry["data"]["song"]
+
+
+                row_dict = {"fb_user_id":entry["from"]["id"],"fb_user_name":entry["from"]["name"],"publish_time":entry["publish_time"],"songs_url":song_info["url"],"fb_song_id":song_info["id"],"song_name":song_info["title"],"app_name":entry["application"]["name"]}
+
+                print "@[fb_songs.fb_listens] " + json.dumps(row_dict)
+                song_dict.update({song_info["id"]:row_dict})
+                counter +=1
+        print "retrieved",counter,"songs"       
+        return song_dict
+
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     # print get_home()
@@ -179,8 +205,12 @@ def index():
                           args={'access_token': access_token, 'limit': 4})
         photos = fb_call('me/photos',
                          args={'access_token': access_token, 'limit': 16})
-        songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':30})
-        redir = get_home() + 'close/'
+        
+	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
+        
+	song_dict = song_data(songs)
+	
+	redir = get_home() + 'close/'
         POST_TO_WALL = ("https://www.facebook.com/dialog/feed?redirect_uri=%s&"
                         "display=popup&app_id=%s" % (redir, FB_APP_ID))
 
