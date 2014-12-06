@@ -4,3 +4,4 @@ Werkzeug==0.7.1
 simplejson==2.2.1
 wsgiref==0.1.2
 requests==0.10.4
+psycopg2==2.5.4
