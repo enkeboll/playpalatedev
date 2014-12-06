@@ -165,18 +165,24 @@ def song_data(songs):
                 print songs["error"]
                 return
 
-        moreSongsURI = songs["paging"]["next"]
+        moreSongsURI = songs.get("paging",{}).get("next")
 
-        list_song_dicts = songs["data"]
+        list_song_dicts = songs.get("data")
 
         counter = 0
         song_dict = {}
         for entry in list_song_dicts:
 
-                song_info = entry["data"]["song"]
+                song_info = entry.get("data",{}).get("song")
 
 
-                row_dict = {"fb_user_id":entry["from"]["id"],"fb_user_name":entry["from"]["name"],"publish_time":entry["publish_time"],"songs_url":song_info["url"],"fb_song_id":song_info["id"],"song_name":song_info["title"],"app_name":entry["application"]["name"]}
+                row_dict = {"fb_user_id": entry.get("from",{}).get("id"),
+			    "fb_user_name": entry.get("from",{}).get("name"),
+			    "publish_time": entry.get("publish_time"),
+			    "songs_url": song_info.get("url"),
+			    "fb_song_id": song_info.get("id"),
+			    "song_name": song_info.get("title"),
+			    "app_name": entry.get("application",{}).get("name")}
 
                 print "@[fb_songs.fb_listens] " + json.dumps(row_dict)
                 song_dict.update({song_info["id"]:row_dict})
