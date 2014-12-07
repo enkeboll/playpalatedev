@@ -13,8 +13,8 @@ import requests
 from flask import Flask, request, redirect, render_template, url_for
 
 from test_postgres import *
+from rovi import *
 
-import Queue
 
 FB_APP_ID = os.environ.get('FACEBOOK_APP_ID')
 requests = requests.session()
@@ -261,14 +261,63 @@ def get_agg_history(song_list):
 		     select a.fb_user_id,b.artist_name,b.fb_artist_id,count(*) as listens
 		     from  (select distinct fb_user_id, fb_song_id, publish_time from fb_songs 
 		     	group by fb_user_id, fb_song_id,publish_time) a
-		     left join lu_fb_song_artist b
+		     left join unique_songs b
 		     on a.fb_song_id = b.fb_song_id
 		     where a.fb_user_id = '{}'
 		     group by a.fb_user_id,b.artist_name,b.fb_artist_id
 		     order by listens desc)""".format(uid))
 	conn.commit()
+	cur.execute("select * from user_palate where fb_user_id='{}';".format(uid))
+	history = cur.fetchall()
 	
-	return 
+	cur.execute("""select artist_name,fb_artist_id 
+		       from user_palate 
+		       where fb_user_id = '{}'
+		       	and fb_artist_id not in (
+				select fb_artist_id from fb_rovi_sync)""".format(uid))
+	sync_update = cur.fetchall()
+	
+	#need to iterate over sync update and add rate limit throttle
+	sync_pg = []
+	sync_row = get_rovi_id(sync_update[2])
+	sync_pg.append(sync_row)
+
+	cur.executemany("""insert into fb_rovi_sync (rovi_artist_id,
+			artist_name,
+			fb_artist_id,
+			music_genres) values 
+			(%(rovi_artist_id)s,
+			%(artist_name)s,
+			%(fb_artist_id)s,
+			%(music_genres)s)""",sync_pg)
+	conn.commit()
+
+	return history
+
+def get_rovi_id(fb_artist_id_tuple):
+	artist       =  fb_artist_id_tuple[0]
+	fb_artist_id = fb_artist_id_tuple[1]
+	
+	params = {}
+	params['country']  = "US"
+	params['language'] = "English"
+	params['format']   = "json"
+	params['name']   = artist
+
+	rovicall = roviAPIcall()
+	jsonobj  = rovicall.get("name/info",params=params)
+	try:
+		dictobj  = json.loads(jsonobj)
+	except:
+		dictobj = {}
+	data     = dictobj.get("name",{})
+	rovi_artist_id = data.get("ids",{}).get("nameId")
+	music_genres = data.get("musicGenres",[None])[0].get('name')
+	sync = {"fb_artist_id": fb_artist_id,
+		"artist_name": artist,
+		"rovi_artist_id": rovi_artist_id,
+		"music_genres": music_genres}
+	return sync
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -292,11 +341,12 @@ def index():
         
 	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
         
-	song_list = song_data(songs)
+	song_list   = song_data(songs)
 	
 	artist_list = update_artist_data(song_list,access_token)
-	history= get_agg_history(song_list)	
-	
+	history     = get_agg_history(song_list)	
+	#recd_song   = recs(history)
+
 	redir = get_home() + 'close/'
         POST_TO_WALL = ("https://www.facebook.com/dialog/feed?redirect_uri=%s&"
                         "display=popup&app_id=%s" % (redir, FB_APP_ID))
