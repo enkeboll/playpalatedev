@@ -8,6 +8,7 @@ import hmac
 import json
 import hashlib
 from base64 import urlsafe_b64decode, urlsafe_b64encode
+import time
 
 import requests
 from flask import Flask, request, redirect, render_template, url_for
@@ -294,6 +295,7 @@ def get_agg_history(song_list):
 
 	return history
 
+@RateLimited(5) # n per second
 def get_rovi_id(fb_artist_id_tuple):
 	artist       =  fb_artist_id_tuple[0]
 	fb_artist_id = fb_artist_id_tuple[1]
@@ -318,6 +320,22 @@ def get_rovi_id(fb_artist_id_tuple):
 		"rovi_artist_id": rovi_artist_id,
 		"music_genres": music_genres}
 	return sync
+
+def RateLimited(maxPerSecond):
+    minInterval = 1.0 / float(maxPerSecond)
+    def decorate(func):
+        lastTimeCalled = [0.0]
+        def rateLimitedFunction(*args,**kargs):
+            elapsed = time.clock() - lastTimeCalled[0]
+            leftToWait = minInterval - elapsed
+            if leftToWait>0:
+                time.sleep(leftToWait)
+            ret = func(*args,**kargs)
+            lastTimeCalled[0] = time.clock()
+            return ret
+        return rateLimitedFunction
+    return decorate
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
