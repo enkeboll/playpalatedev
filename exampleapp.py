@@ -279,9 +279,7 @@ def get_agg_history(song_list):
 	sync_update = cur.fetchall()
 	
 	#need to iterate over sync update and add rate limit throttle
-	sync_pg = []
-	sync_row = get_rovi_id(sync_update[2])
-	sync_pg.append(sync_row)
+	sync_pg = [get_rovi_id(row) for row in sync_update]
 
 	cur.executemany("""insert into fb_rovi_sync (rovi_artist_id,
 			artist_name,
@@ -294,6 +292,21 @@ def get_agg_history(song_list):
 	conn.commit()
 
 	return history
+
+def RateLimited(maxPerSecond):
+    minInterval = 1.0 / float(maxPerSecond)
+    def decorate(func):
+        lastTimeCalled = [0.0]
+        def rateLimitedFunction(*args,**kargs):
+            elapsed = time.clock() - lastTimeCalled[0]
+            leftToWait = minInterval - elapsed
+            if leftToWait>0:
+                time.sleep(leftToWait)
+            ret = func(*args,**kargs)
+            lastTimeCalled[0] = time.clock()
+            return ret
+        return rateLimitedFunction
+    return decorate
 
 @RateLimited(5) # n per second
 def get_rovi_id(fb_artist_id_tuple):
@@ -312,29 +325,19 @@ def get_rovi_id(fb_artist_id_tuple):
 		dictobj  = json.loads(jsonobj)
 	except:
 		dictobj = {}
+	print dictobj
 	data     = dictobj.get("name",{})
 	rovi_artist_id = data.get("ids",{}).get("nameId")
-	music_genres = data.get("musicGenres",[None])[0].get('name')
+	try:
+		music_genres = data.get("musicGenres",[{}])[0].get('name')
+	except:
+		music_genres = None
 	sync = {"fb_artist_id": fb_artist_id,
 		"artist_name": artist,
 		"rovi_artist_id": rovi_artist_id,
 		"music_genres": music_genres}
 	return sync
 
-def RateLimited(maxPerSecond):
-    minInterval = 1.0 / float(maxPerSecond)
-    def decorate(func):
-        lastTimeCalled = [0.0]
-        def rateLimitedFunction(*args,**kargs):
-            elapsed = time.clock() - lastTimeCalled[0]
-            leftToWait = minInterval - elapsed
-            if leftToWait>0:
-                time.sleep(leftToWait)
-            ret = func(*args,**kargs)
-            lastTimeCalled[0] = time.clock()
-            return ret
-        return rateLimitedFunction
-    return decorate
 
 
 @app.route('/', methods=['GET', 'POST'])
