@@ -217,10 +217,10 @@ def artist_info(song_id,access_token):
 	if "error" in song_info:
 		print song_info["error"]
 		return
-	artist_info = song_info['data']['musician'][0]
-	artist_name = artist_info['name']
-	artist_id = artist_info['id']
-	artist_url = artist_info['url']
+	artist_info = song_info.get('data',{}).get('musician',[None])[0]
+	artist_name = artist_info.get('name')
+	artist_id = artist_info.get('id')
+	artist_url = artist_info.get('url')
 	return {'fb_song_id': song_id,
 		'artist_name': artist_name,
 		'fb_artist_id': artist_id,
