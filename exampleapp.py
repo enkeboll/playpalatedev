@@ -268,8 +268,7 @@ def get_agg_history(song_list):
 		     group by a.fb_user_id,b.artist_name,b.fb_artist_id
 		     order by listens desc)""".format(uid))
 	conn.commit()
-	cur.execute("select * from user_palate where fb_user_id='{}';".format(uid))
-	history = cur.fetchall()
+
 	
 	cur.execute("""select artist_name,fb_artist_id 
 		       from user_palate 
@@ -278,7 +277,6 @@ def get_agg_history(song_list):
 				select fb_artist_id from fb_rovi_sync)""".format(uid))
 	sync_update = cur.fetchall()
 	
-	#need to iterate over sync update and add rate limit throttle
 	sync_pg = [get_rovi_id(row) for row in sync_update]
 
 	cur.executemany("""insert into fb_rovi_sync (rovi_artist_id,
@@ -291,7 +289,48 @@ def get_agg_history(song_list):
 			%(music_genres)s)""",sync_pg)
 	conn.commit()
 
+	cur.execute("""select a.*,rovi_artist_id from user_palate a
+			left join fb_rovi_sync b
+			on a.fb_artist_id = b.fb_artist_id
+			where a.fb_user_id='{}';""".format(uid))
+	history = cur.fetchall()
+	
+	for row in history:
+		print row 
+
+	rovi_id = 'MN0002784799' #history[0][5]
+	
+	cur.execute("""select distinct artist1
+			from artist_sim;""")
+	computed_artists = cur.fetchall()
+
+	if rovi_id not in computed_artists:
+		get_bio(rovi_id)
+
+	cur.execute("""select artist2
+			from artist_sim
+			where artist1 = '{}';""".format(rovi_id))
+	scores = cur.fetchall()
+	for row in scores:
+		print row
 	return history
+
+def get_bio(rovi_id,params = {'country': 'US',
+			      'language': 'English',
+			      'format': 'json'}):
+	print rovi_id	
+
+	params['nameid']   = rovi_id
+
+	rovicall = roviAPIcall()
+        bio_json = rovicall.get("name/musicbio",params=params)
+	try:
+		bio_dict = json.loads(bio_json)
+	except:
+		bio_dict = {}
+	bio_text = bio_dict.get("musicBio",{}).get("text")
+	print bio_text
+	return
 
 def RateLimited(maxPerSecond):
     minInterval = 1.0 / float(maxPerSecond)
@@ -325,7 +364,7 @@ def get_rovi_id(fb_artist_id_tuple):
 		dictobj  = json.loads(jsonobj)
 	except:
 		dictobj = {}
-	print dictobj
+
 	data     = dictobj.get("name",{})
 	rovi_artist_id = data.get("ids",{}).get("nameId")
 	try:
