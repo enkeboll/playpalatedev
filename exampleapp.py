@@ -12,6 +12,10 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 import requests
 from flask import Flask, request, redirect, render_template, url_for
 
+from test_postgres import *
+
+import Queue
+
 FB_APP_ID = os.environ.get('FACEBOOK_APP_ID')
 requests = requests.session()
 
@@ -170,7 +174,7 @@ def song_data(songs):
         list_song_dicts = songs.get("data")
 
         counter = 0
-        song_dict = {}
+	song_list = []
         for entry in list_song_dicts:
 
                 song_info = entry.get("data",{}).get("song")
@@ -185,12 +189,86 @@ def song_data(songs):
 			    "app_name": entry.get("application",{}).get("name")}
 
                 print "@[fb_songs.fb_listens] " + json.dumps(row_dict)
-                song_dict.update({song_info["id"]:row_dict})
+                song_list.append(row_dict)
                 counter +=1
-        print "retrieved",counter,"songs"       
-        return song_dict
+        
+	conn,cur = open_con()
+	cur.executemany("""insert into fb_songs (fb_user_id,
+			fb_user_name,
+			publish_time,
+			songs_url,
+			fb_song_id,
+			song_name,
+			app_name) values 
+			(%(fb_user_id)s,
+			%(fb_user_name)s,
+			%(publish_time)s,
+			%(songs_url)s,
+			%(fb_song_id)s,
+			%(song_name)s,
+			%(app_name)s)""",song_list)
+	conn.commit()
+	print "retrieved",counter,"songs"       
+        return song_list
+
+def artist_info(song_id,access_token):
+	song_info = fb_call(song_id,args={'access_token': access_token})
+	if "error" in song_info:
+		print song_info["error"]
+		return
+	artist_info = song_info['data']['musician'][0]
+	artist_name = artist_info['name']
+	artist_id = artist_info['id']
+	artist_url = artist_info['url']
+	return {'fb_song_id': song_id,
+		'artist_name': artist_name,
+		'fb_artist_id': artist_id,
+		'fb_artist_url': artist_url}
 
 
+def update_artist_data(song_list,access_token):
+	song_ids = [entry.get('fb_song_id') for entry in song_list]
+	song_ids = list(set(song_ids))
+
+	conn,cur = open_con()
+	cur.execute("select fb_song_id from unique_songs order by fb_song_id")
+	cached_songs = cur.fetchall()
+
+	new_song_data = []
+	for song in song_ids:
+		if song not in cached_songs:
+			new_song_data.append(artist_info(song,access_token))
+
+	cur.executemany("""insert into unique_songs (fb_song_id,
+			artist_name,
+			fb_artist_id,
+			fb_artist_url) values 
+			(%(fb_song_id)s,
+			%(artist_name)s,
+			%(fb_artist_id)s,
+			%(fb_artist_url)s)""",new_song_data)
+	conn.commit()
+	return new_song_data
+
+def get_agg_history(song_list):	
+	conn,cur = open_con()
+	uid = song_list[0].get('fb_user_id')
+	cur.execute("delete from user_palate where fb_user_id = '{}'".format(uid))
+	conn.commit()
+
+	cur.execute("""
+		     insert into user_palate (fb_user_id,artist_name,fb_artist_id,listens) (
+		     select a.fb_user_id,b.artist_name,b.fb_artist_id,count(*) as listens
+		     from  (select distinct fb_user_id, fb_song_id, publish_time from fb_songs 
+		     	group by fb_user_id, fb_song_id,publish_time) a
+		     left join lu_fb_song_artist b
+		     on a.fb_song_id = b.fb_song_id
+		     where a.fb_user_id = '{}'
+		     group by a.fb_user_id,b.artist_name,b.fb_artist_id
+		     order by listens desc)""".format(uid))
+	conn.commit()
+	
+	return 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -214,7 +292,10 @@ def index():
         
 	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
         
-	song_dict = song_data(songs)
+	song_list = song_data(songs)
+	
+	artist_list = update_artist_data(song_list,access_token)
+	history= get_agg_history(song_list)	
 	
 	redir = get_home() + 'close/'
         POST_TO_WALL = ("https://www.facebook.com/dialog/feed?redirect_uri=%s&"
