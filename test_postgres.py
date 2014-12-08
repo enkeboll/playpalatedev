@@ -49,11 +49,27 @@ def upload_artist_sim():
 	conn,cur = open_con()
 	csvfile = open('artist_sim.csv','r')
 	cur.copy_from(csvfile,'artist_sim',sep=',')
-	conn.commit()	
+	conn.commit()
+	return
+
+def upload_s3_filnames():
+	import boto
+	AWS_ACCESS_KEY_ID = 'AKIAJON2WXZT26TDJMLQ'
+	AWS_SECRET_KEY = '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'
+	s3 = boto.connect_s3(AWS_ACCESS_KEY_ID,AWS_SECRET_KEY)
+	bucket = s3.get_bucket('playpalate')
+
+	rs = bucket.list()
+	filenames = []
+	for key in rs:
+		filenames.append({'rovi_artist_id':key.name[:-8]})
+	print filenames[0:10]
+	conn,cur = open_con()
+	cur.executemany("insert into downloaded_bios (rovi_artist_id) values (%(rovi_artist_id)s)",filenames)
+	conn.commit()
+	return
 
 def main():
-	
-
 	return
 
 if __name__ == '__main__':
