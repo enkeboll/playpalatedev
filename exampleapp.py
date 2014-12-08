@@ -15,7 +15,7 @@ from flask import Flask, request, redirect, render_template, url_for
 
 from test_postgres import *
 from rovi import *
-
+from s3_upload import *
 
 FB_APP_ID = os.environ.get('FACEBOOK_APP_ID')
 requests = requests.session()
@@ -227,28 +227,29 @@ def artist_info(song_id,access_token):
 		'fb_artist_url': artist_url}
 
 
-def update_artist_data(song_list,access_token):
-	song_ids = [entry.get('fb_song_id') for entry in song_list]
-	song_ids = list(set(song_ids))
-
+def update_artist_data(access_token):
 	conn,cur = open_con()
-	cur.execute("select fb_song_id from unique_songs order by fb_song_id")
-	cached_songs = cur.fetchall()
-
-	new_song_data = []
-	for song in song_ids:
-		if song not in cached_songs:
-			new_song_data.append(artist_info(song,access_token))
-
-	cur.executemany("""insert into unique_songs (fb_song_id,
-			artist_name,
-			fb_artist_id,
-			fb_artist_url) values 
-			(%(fb_song_id)s,
-			%(artist_name)s,
-			%(fb_artist_id)s,
-			%(fb_artist_url)s)""",new_song_data)
-	conn.commit()
+	cur.execute("""select distinct fb_song_id from fb_songs
+			where fb_song_id not in (select fb_song_id 
+						from unique_songs)
+			order by fb_song_id""")
+	new_songs = cur.fetchall()
+	
+	if len(new_songs) > 0:
+		new_song_data = [artist_info(song[0],access_token) for song in new_songs]
+		for row in new_song_data:
+			print row
+		cur.executemany("""insert into unique_songs (fb_song_id,
+				artist_name,
+				fb_artist_id,
+				fb_artist_url) values 
+				(%(fb_song_id)s,
+				%(artist_name)s,
+				%(fb_artist_id)s,
+				%(fb_artist_url)s)""",new_song_data)
+		conn.commit()
+	else:
+		new_song_data = [None]
 	return new_song_data
 
 def get_agg_history(song_list):	
@@ -289,47 +290,37 @@ def get_agg_history(song_list):
 			%(music_genres)s)""",sync_pg)
 	conn.commit()
 
+
+	cur.execute("""select b.rovi_artist_id from user_palate a
+			left join fb_rovi_sync b
+			on a.fb_artist_id = b.fb_artist_id
+			where a.fb_user_id='{}'
+			  and b.rovi_artist_id not in (select distinct artist1 from artist_sim)
+			  and b.rovi_artist_id not in (select rovi_artist_id from downloaded_bios);""".format(uid))
+	get_these_bios = cur.fetchall()
+	
+	if len(get_these_bios)>0:
+		bio_response = [{'rovi_artist_id':get_bio(rovi_id[0])} for rovi_id in get_these_bios]
+		cur.executemany("insert into downloaded_bios (rovi_artist_id) values (%(rovi_artist_id)s)",bio_response)
+		conn.commit()
+		
+		update_artist_sim(bio_response)
+
+
 	cur.execute("""select a.*,rovi_artist_id from user_palate a
 			left join fb_rovi_sync b
 			on a.fb_artist_id = b.fb_artist_id
 			where a.fb_user_id='{}';""".format(uid))
 	history = cur.fetchall()
 	
-	for row in history:
-		print row 
 
-	rovi_id = 'MN0002784799' #history[0][5]
-	
-	cur.execute("""select distinct artist1
-			from artist_sim;""")
-	computed_artists = cur.fetchall()
 
-	if rovi_id not in computed_artists:
-		get_bio(rovi_id)
 
-	cur.execute("""select artist2
-			from artist_sim
-			where artist1 = '{}';""".format(rovi_id))
-	scores = cur.fetchall()
-	for row in scores:
-		print row
 	return history
 
-def get_bio(rovi_id,params = {'country': 'US',
-			      'language': 'English',
-			      'format': 'json'}):
-	print rovi_id	
-
-	params['nameid']   = rovi_id
-
-	rovicall = roviAPIcall()
-        bio_json = rovicall.get("name/musicbio",params=params)
-	try:
-		bio_dict = json.loads(bio_json)
-	except:
-		bio_dict = {}
-	bio_text = bio_dict.get("musicBio",{}).get("text")
-	print bio_text
+def update_artist_sim(bio_response):
+	
+	
 	return
 
 def RateLimited(maxPerSecond):
@@ -346,6 +337,26 @@ def RateLimited(maxPerSecond):
             return ret
         return rateLimitedFunction
     return decorate
+
+@RateLimited(5) # n per second
+def get_bio(rovi_id,params = {'country': 'US',
+			      'language': 'English',
+			      'format': 'json'}):
+	params['nameid']   = rovi_id
+
+	rovicall = roviAPIcall()
+        bio_json = rovicall.get("name/musicbio",params=params)
+	try:
+		bio_dict = json.loads(bio_json)
+		bio_text = bio_dict.get("musicBio",{}).get("text")
+		if bio_text:
+			filename = '{}_bio.txt'.format(rovi_id)	
+			print s3_upload_string(bio_text,filename)
+			return rovi_id
+	except:
+		print bio_json
+
+		return None
 
 @RateLimited(5) # n per second
 def get_rovi_id(fb_artist_id_tuple):
@@ -403,7 +414,7 @@ def index():
         
 	song_list   = song_data(songs)
 	
-	artist_list = update_artist_data(song_list,access_token)
+	artist_list = update_artist_data(access_token)
 	history     = get_agg_history(song_list)	
 	#recd_song   = recs(history)
 
