@@ -16,6 +16,8 @@ from flask import Flask, request, redirect, render_template, url_for
 from test_postgres import *
 from rovi import *
 from s3_upload import *
+from update_artist_sim import *
+
 
 FB_APP_ID = os.environ.get('FACEBOOK_APP_ID')
 requests = requests.session()
@@ -297,15 +299,16 @@ def get_agg_history(song_list):
 			where a.fb_user_id='{}'
 			  and b.rovi_artist_id not in (select distinct artist1 from artist_sim)
 			  and b.rovi_artist_id not in (select rovi_artist_id from downloaded_bios);""".format(uid))
-	get_these_bios = cur.fetchall()
+	new_artists = cur.fetchall()
 	
-	if len(get_these_bios)>0:
-		bio_response = [{'rovi_artist_id':get_bio(rovi_id[0])} for rovi_id in get_these_bios]
-		cur.executemany("insert into downloaded_bios (rovi_artist_id) values (%(rovi_artist_id)s)",bio_response)
+	if len(new_artists)>0:
+		new_artist_ids = [{'rovi_artist_id':get_bio(rovi_id[0])} for rovi_id in new_artists]
+		cur.executemany("insert into downloaded_bios (rovi_artist_id) values (%(rovi_artist_id)s)",new_artist_ids)
 		conn.commit()
-		
-		update_artist_sim(bio_response)
-
+		#this is a big one	
+		#update_artist_sim(bio_response)
+	else:
+		print "Bios up to date"
 
 	cur.execute("""select a.*,rovi_artist_id from user_palate a
 			left join fb_rovi_sync b
@@ -313,8 +316,6 @@ def get_agg_history(song_list):
 			where a.fb_user_id='{}';""".format(uid))
 	history = cur.fetchall()
 	
-
-
 
 	return history
 

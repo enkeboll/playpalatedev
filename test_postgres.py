@@ -19,29 +19,26 @@ def open_con():
 	cur = conn.cursor()
 	return conn,cur
 
-def batch_insert(doc_sim):
+def batch_insert(similars,increment):
 	import math
-	num_batches = int(math.floor(len(doc_sim)/100))
-	last_chunk =  num_batches % 100
+	num_batches = int(math.floor(len(similars)/increment))
+	last_chunk =  len(similars) % increment
 	
-	def chunk(doc_sim):
+	def insert_similars(similars):
 		conn,cur = open_con()
-		
-		cur.executemany("""insert into artist_sim (artist1,
-				artist2,
-				score) values 
-				(%(artist1)s,
-				%(artist2)s,
-				%(score)s)""",doc_sim)
-		
+		cur.executemany("""insert into artist_sim (artist1,artist2,score) 
+						values (%(artist1)s,%(artist2)s,%(score)s)""",similars)
 		conn.commit()
+		return
 	count = 0
 	for i in range(num_batches):
-		first = i*100
-		last  = first + 99 
-		count += len(doc_sim[first:last])
-		print first,last
-	print count,last_chunk,len(doc_sim),len(doc_sim[first:last])
+		first = i*increment
+		last  = first + increment -1
+		insert_similars(similars[first:last])
+		print 'Executed {0} out of {1} batches'.format(i,num_batches)
+	insert_similars(similars[last+1:len(similars)-1])
+	print last+1,len(similars)
+	print count,last_chunk,len(similars)
 
 #worked for 600k rows. didn't work for 3.6MM rows
 def upload_artist_sim():
@@ -54,8 +51,8 @@ def upload_artist_sim():
 
 def upload_s3_filnames():
 	import boto
-	AWS_ACCESS_KEY_ID = 'AKIAJON2WXZT26TDJMLQ'
-	AWS_SECRET_KEY = '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'
+	AWS_ACCESS_KEY_ID = ''
+	AWS_SECRET_KEY = ''
 	s3 = boto.connect_s3(AWS_ACCESS_KEY_ID,AWS_SECRET_KEY)
 	bucket = s3.get_bucket('playpalate')
 
