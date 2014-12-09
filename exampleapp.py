@@ -16,7 +16,7 @@ from flask import Flask, request, redirect, render_template, url_for
 from test_postgres import *
 from rovi import *
 from s3_upload import *
-from update_artist_sim import *
+#from update_artist_sim import *
 
 
 FB_APP_ID = os.environ.get('FACEBOOK_APP_ID')

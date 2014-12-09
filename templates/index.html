@@ -39,17 +39,7 @@
 
 {% block content %}
 <section class="clearfix" id="samples">
-      <h1>Examples of the Facebook Graph API</h1>
-      <div class="list">
-        <h3>A few of your friends</h3>
-        <ul class="friends">{% for friend in friends.data %}
-        <li>
-          <a href="#" onclick="window.open('http://www.facebook.com/{{friend.id}}')">
-            <img src="https://graph.facebook.com/{{friend.id}}/picture" alt="{{friend.name}}">
-            {{friend.name}}
-          </a>
-        </li>{% endfor %}</ul>
-      </div>
+      <h1>This is your data. Own it!</h1>
       <div class="list inline">
         <h3>Recent photos</h3>
         <ul class="photos">
@@ -88,10 +78,10 @@
       </div>
 
       <div class="list">
-        <h3>Songs</h3>
+        <h3>Recent Songs</h3>
         <ul class="songs"> {% for song in songs.data %}
         <li>	
-            {{song.id}}
+            {{song.data.song.title}}
         </li>{% endfor %}</ul>
       </div>
     </section>
