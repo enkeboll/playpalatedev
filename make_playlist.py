@@ -2,21 +2,35 @@ from test_postgres import *
 
 uid = '10104488105352779'
 
-conn,cur = open_con()
-cur.execute("""select meta1.artist_name as artist1, meta2.artist_name as artist2,sim.score from artist_sim sim
-		join fb_rovi_sync meta1
-		on sim.artist1=meta1.rovi_artist_id
-		join fb_rovi_sync meta2
-		on sim.artist2=meta2.rovi_artist_id
-		join 
-			(select rovi_artist_id from user_palate
-			join fb_rovi_sync meta3
-			on user_palate.fb_artist_id = meta3.fb_artist_id
-			where user_palate.fb_user_id='{}'
-			limit 1) palate
-		on sim.artist1= palate.rovi_artist_id
-		order by sim.score desc;""".format(uid))
-recs = cur.fetchall()
+def recs(uid):
+	conn,cur = open_con()
+	cur.execute("""select meta1.artist_name as artist1, meta2.artist_name as artist2,sim.score from artist_sim sim
+			join fb_rovi_sync meta1
+			on sim.artist1=meta1.rovi_artist_id
+			join fb_rovi_sync meta2
+			on sim.artist2=meta2.rovi_artist_id
+			join 
+				(select rovi_artist_id from user_palate
+				join fb_rovi_sync meta3
+				on user_palate.fb_artist_id = meta3.fb_artist_id
+				where user_palate.fb_user_id='{}'
+				limit 1) palate
+			on sim.artist1= palate.rovi_artist_id
+			order by sim.score desc;""".format(uid))
+	recs = [{"artist1name":row[0],"artist2name": row[1],"score":row[3]} for row in cur.fetchall()]
+
+
+import requests
+import os
+spotify_client_id = os.environ.get('SPOTIFY_CLIENT_ID')
+redirect_uri = 'https://fb-template-python-playpalate.herokuapp.com/'
+
+params={'client_id':spotify_client_id,
+	'response_type':'code',
+	'redirect_uri':redirect_uri,
+	'scope': 'playlist-modify-private'}
+base_url = 'https://accounts.spotify.com/authorize/'
+r = requests.get(base_url,params=params)
 
 
 conn,cur = open_con()
