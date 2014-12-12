@@ -125,6 +125,31 @@ def get_home():
     return 'https://' + request.host + '/'
 
 
+def spotify_auth():
+
+        spotify_client_id = os.environ.get('SPOTIFY_CLIENT_ID')
+	#redirect_uri = 'https://fb-template-python-playpalate.herokuapp.com/'
+	redirect_uri = '0.0.0.0:5000'
+	params={'client_id':spotify_client_id,
+		'response_type':'code',
+		'redirect_uri':redirect_uri,
+		'scope': 'playlist-modify-private playlist-modify-public'}
+
+	base_url = 'https://accounts.spotify.com/authorize/'
+	r = requests.get(base_url,params=params)
+	from urlparse import parse_qs
+	token = parse_qs(r.content).get('access_token')
+	print token
+	return token
+
+
+def get_spotify_token():
+	if request.args.get('code',None):
+		return spotify_auth(request.args.get('code'))[0]
+
+	return
+
+
 def get_token():
 
     if request.args.get('code', None):
@@ -395,12 +420,14 @@ def get_rovi_id(fb_artist_id_tuple):
 def index():
     # print get_home()
 
-
+    print spotify_auth()
+    spotify_token = get_spotify_token()
     access_token = get_token()
     channel_url = url_for('get_channel', _external=True)
     channel_url = channel_url.replace('http:', '').replace('https:', '')
 
-    if access_token:
+
+    if access_token and spotify_token:
 
         me = fb_call('me', args={'access_token': access_token})
         fb_app = fb_call(FB_APP_ID, args={'access_token': access_token})
@@ -413,10 +440,10 @@ def index():
         
 	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
         
-	song_list   = song_data(songs)
+	#song_list   = song_data(songs)
 	
-	artist_list = update_artist_data(access_token)
-	history     = get_agg_history(song_list)	
+	#artist_list = update_artist_data(access_token)
+	#history     = get_agg_history(song_list)	
 	#recd_song   = recs(history)
 
 	redir = get_home() + 'close/'
@@ -441,7 +468,8 @@ def index():
             me=me, POST_TO_WALL=POST_TO_WALL, SEND_TO=SEND_TO, url=url,
             channel_url=channel_url, name=FB_APP_NAME)
     else:
-        return render_template('login.html', app_id=FB_APP_ID, token=access_token, url=request.url, channel_url=channel_url, name=FB_APP_NAME)
+        return render_template('login.html', app_id=FB_APP_ID, token=access_token, 
+			url=request.url, channel_url=channel_url, name=FB_APP_NAME)
 
 @app.route('/channel.html', methods=['GET', 'POST'])
 def get_channel():
