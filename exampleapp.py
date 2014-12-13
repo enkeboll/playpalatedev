@@ -11,13 +11,16 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 import time
 
 import requests
-from flask import Flask, request, redirect, render_template, url_for
+from flask import Flask, request, redirect, render_template, url_for,session
+from flask_oauthlib.client import OAuth, OAuthException
 
 from test_postgres import *
 from rovi import *
 from s3_upload import *
 #from update_artist_sim import *
 
+SPOTIFY_APP_ID = os.environ.get('SPOTIFY_CLIENT_ID')
+SPOTIFY_APP_SECRET = os.environ.get('SPOTIFY_SECRET')
 
 FB_APP_ID = os.environ.get('FACEBOOK_APP_ID')
 requests = requests.session()
@@ -119,35 +122,27 @@ def fb_call(call, args=None):
 app = Flask(__name__)
 app.config.from_object(__name__)
 app.config.from_object('conf.Config')
+app.secret_key = os.environ.get('SPOTIFY_SECRET')
+oauth = OAuth(app)
 
+spotify = oauth.remote_app(
+	'spotify',
+	consumer_key=SPOTIFY_APP_ID,
+	consumer_secret=SPOTIFY_APP_SECRET,
+	# Change the scope to match whatever it us you need
+	# list of scopes can be found in the url below
+	# https://developer.spotify.com/web-api/using-scopes/
+	request_token_params={'scope': 'playlist-modify-public playlist-modify-private'},
+	base_url='https://accounts.spotify.com',
+	request_token_url=None,
+	access_token_url='https://accounts.spotify.com/api/token',
+	authorize_url='https://accounts.spotify.com/authorize',
+	access_token_method='POST'
+  )
 
 def get_home():
     return 'https://' + request.host + '/'
 
-
-def spotify_auth():
-
-        spotify_client_id = os.environ.get('SPOTIFY_CLIENT_ID')
-	#redirect_uri = 'https://fb-template-python-playpalate.herokuapp.com/'
-	redirect_uri = '0.0.0.0:5000'
-	params={'client_id':spotify_client_id,
-		'response_type':'code',
-		'redirect_uri':redirect_uri,
-		'scope': 'playlist-modify-private playlist-modify-public'}
-
-	base_url = 'https://accounts.spotify.com/authorize/'
-	r = requests.get(base_url,params=params)
-	from urlparse import parse_qs
-	token = parse_qs(r.content).get('access_token')
-	print token
-	return token
-
-
-def get_spotify_token():
-	if request.args.get('code',None):
-		return spotify_auth(request.args.get('code'))[0]
-
-	return
 
 
 def get_token():
@@ -418,10 +413,8 @@ def get_rovi_id(fb_artist_id_tuple):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # print get_home()
-
-    print spotify_auth()
-    spotify_token = get_spotify_token()
+    spotify_login = 'http://' + request.host + '/spotify-login' 
+    spotify_token = get_spotify_oauth_token()
     access_token = get_token()
     channel_url = url_for('get_channel', _external=True)
     channel_url = channel_url.replace('http:', '').replace('https:', '')
@@ -469,7 +462,8 @@ def index():
             channel_url=channel_url, name=FB_APP_NAME)
     else:
         return render_template('login.html', app_id=FB_APP_ID, token=access_token, 
-			url=request.url, channel_url=channel_url, name=FB_APP_NAME)
+			url=request.url, channel_url=channel_url, name=FB_APP_NAME,
+			spotify_login=spotify_login)
 
 @app.route('/channel.html', methods=['GET', 'POST'])
 def get_channel():
@@ -479,6 +473,43 @@ def get_channel():
 @app.route('/privacy.html', methods=['GET', 'POST'])
 def privacy():
     return render_template('privacy.html')
+
+@app.route('/callback.html', methods=['GET', 'POST'])
+def callback():
+    return render_template('callback.html')
+
+
+
+
+@app.route('/spotify-login')
+def login():
+	callback = url_for(
+		'spotify_authorized',
+		next=request.args.get('next') or request.referrer or None,
+		_external=True
+	   )
+	return spotify.authorize(callback=callback)
+
+@app.route('/spotify-login/authorized')
+def spotify_authorized():
+	resp = spotify.authorized_response()
+	if resp is None:
+		return 'Access denied: reason={0} error={1}'.format(
+			request.args['error_reason'],
+			request.args['error_description']
+			)
+	if isinstance(resp, OAuthException):
+		return 'Access denied: {0}'.format(resp.message)
+
+	session['oauth_token'] = (resp['access_token'], '')
+	me = spotify.get('/me')
+	return  redirect('/')
+
+
+@spotify.tokengetter
+def get_spotify_oauth_token():
+	    return session.get('oauth_token')
+
 
 @app.route('/close/', methods=['GET', 'POST'])
 def close():
