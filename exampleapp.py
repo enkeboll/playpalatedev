@@ -17,6 +17,7 @@ from flask_oauthlib.client import OAuth, OAuthException
 from test_postgres import *
 from rovi import *
 from s3_upload import *
+from make_playlist import *
 #from update_artist_sim import *
 
 SPOTIFY_APP_ID = os.environ.get('SPOTIFY_CLIENT_ID')
@@ -133,7 +134,7 @@ spotify = oauth.remote_app(
 	# list of scopes can be found in the url below
 	# https://developer.spotify.com/web-api/using-scopes/
 	request_token_params={'scope': 'playlist-modify-public playlist-modify-private'},
-	base_url='https://accounts.spotify.com',
+	base_url='https://api.spotify.com/v1',
 	request_token_url=None,
 	access_token_url='https://accounts.spotify.com/api/token',
 	authorize_url='https://accounts.spotify.com/authorize',
@@ -415,15 +416,17 @@ def get_rovi_id(fb_artist_id_tuple):
 def index():
     spotify_login = 'http://' + request.host + '/spotify-login' 
     spotify_token = get_spotify_oauth_token()
+
     access_token = get_token()
     channel_url = url_for('get_channel', _external=True)
     channel_url = channel_url.replace('http:', '').replace('https:', '')
 
 
     if access_token and spotify_token:
-
-        me = fb_call('me', args={'access_token': access_token})
-        fb_app = fb_call(FB_APP_ID, args={'access_token': access_token})
+	
+	me = fb_call('me', args={'access_token': access_token})
+        fb_user_id = me.get('id')
+	fb_app = fb_call(FB_APP_ID, args={'access_token': access_token})
         likes = fb_call('me/likes',
                         args={'access_token': access_token, 'limit': 4})
         friends = fb_call('me/friends',
@@ -438,6 +441,8 @@ def index():
 	#artist_list = update_artist_data(access_token)
 	#history     = get_agg_history(song_list)	
 	#recd_song   = recs(history)
+	
+	recs = palate_playlist(fb_user_id,spotify_token)
 
 	redir = get_home() + 'close/'
         POST_TO_WALL = ("https://www.facebook.com/dialog/feed?redirect_uri=%s&"
@@ -485,7 +490,7 @@ def callback():
 def login():
 	callback = url_for(
 		'spotify_authorized',
-		next=request.args.get('next') or request.referrer or None,
+		#next=request.args.get('next') or request.referrer or None,
 		_external=True
 	   )
 	return spotify.authorize(callback=callback)
@@ -502,13 +507,13 @@ def spotify_authorized():
 		return 'Access denied: {0}'.format(resp.message)
 
 	session['oauth_token'] = (resp['access_token'], '')
-	me = spotify.get('/me')
+
 	return  redirect('/')
 
 
 @spotify.tokengetter
 def get_spotify_oauth_token():
-	    return session.get('oauth_token')
+	    return session.get('oauth_token')[0]
 
 
 @app.route('/close/', methods=['GET', 'POST'])
