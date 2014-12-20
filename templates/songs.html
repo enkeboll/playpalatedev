@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+      <h1>Here are the songs you listen to.</h1>
+
+      <div class="list">
+        <h3>Recent Songs</h3>
+        <ul class="songs"> {% for song in songs.data %}
+        <li>	
+            {{song.data.song.title}}
+        </li>{% endfor %}</ul>
+      </div>
+
+{% endblock%}

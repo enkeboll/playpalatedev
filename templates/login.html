@@ -2,21 +2,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div id="fb-root"></div>
-<script>(function(d, s, id) {
-  var js, fjs = d.getElementsByTagName(s)[0];
-    if (d.getElementById(id)) return;
-      js = d.createElement(s); js.id = id;
-      js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&appId=339936206189293&version=v2.0";
-      fjs.parentNode.insertBefore(js, fjs);
-  }(document, 'script', 'facebook-jssdk'));</script>
+
 
 <div class="fluid-marketing">
+
+
+ <div id="login-flow">
+	 <fb:login-button data-scope="user_likes,user_photos,user_photo_video_tags,user_actions.music" show-faces="true"></fb:login-button>
+ </div>
 	<div class="span6">
-	  <div class="fb-login-button" data-max-rows="1" data-size="xlarge" data-show-faces="false" data-auto-logout-link="false"></div>
-	</div>
-	<div class="span6">
-	<a href="#" >
+		<a href={{ url_for('login') }} >
 		<img src="/static/images/log_in-desktop-large.png" alt="log_in-spotify">
 	</a>
 	</div>

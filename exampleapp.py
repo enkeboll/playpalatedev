@@ -414,10 +414,11 @@ def get_rovi_id(fb_artist_id_tuple):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    spotify_login = 'http://' + request.host + '/spotify-login' 
-    #spotify_token = get_spotify_oauth_token()
 
+    spotify_token = get_spotify_oauth_token()
     access_token = get_token()
+    print spotify_token
+    print access_token
     channel_url = url_for('get_channel', _external=True)
     channel_url = channel_url.replace('http:', '').replace('https:', '')
 
@@ -461,14 +462,13 @@ def index():
         url = request.url
 
         return render_template(
-            'index.html', app_id=FB_APP_ID, token=access_token, likes=likes,
+            'songs.html', app_id=FB_APP_ID, token=access_token, likes=likes,
             friends=friends, photos=photos, songs=songs, app_friends=app_friends, app=fb_app,
             me=me, POST_TO_WALL=POST_TO_WALL, SEND_TO=SEND_TO, url=url,
             channel_url=channel_url, name=FB_APP_NAME)
     else:
         return render_template('login.html', app_id=FB_APP_ID, token=access_token, 
-			url=request.url, channel_url=channel_url, name=FB_APP_NAME,
-			spotify_login=spotify_login)
+			url=request.url, channel_url=channel_url, name=FB_APP_NAME)
 
 @app.route('/channel.html', methods=['GET', 'POST'])
 def get_channel():
