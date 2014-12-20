@@ -415,7 +415,7 @@ def get_rovi_id(fb_artist_id_tuple):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     spotify_login = 'http://' + request.host + '/spotify-login' 
-    spotify_token = get_spotify_oauth_token()
+    #spotify_token = get_spotify_oauth_token()
 
     access_token = get_token()
     channel_url = url_for('get_channel', _external=True)
@@ -519,6 +519,10 @@ def get_spotify_oauth_token():
 @app.route('/close/', methods=['GET', 'POST'])
 def close():
     return render_template('close.html')
+
+@app.route('/home', methods=['GET', 'POST'])
+def close():
+    return render_template('home.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
