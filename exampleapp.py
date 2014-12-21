@@ -11,7 +11,7 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 import time
 
 import requests
-from flask import Flask, request, redirect, render_template, url_for,session
+from flask import Flask, request, redirect, render_template, url_for,session,jsonify
 from flask_oauthlib.client import OAuth, OAuthException
 
 from test_postgres import *
@@ -187,11 +187,17 @@ def get_token():
 
         return token
 
+@app.route('/_song_data', methods=['GET','POST'])
+def song_data():
+    	access_token = get_token()
+	if not access_token:
+		return json.dumps({'message': 'No Token'})
+	
+	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
 
-def song_data(songs):
         if "error" in songs:
                 print songs["error"]
-                return
+		return json.dumps({'message':'Error'})
 
         moreSongsURI = songs.get("paging",{}).get("next")
 
@@ -233,7 +239,7 @@ def song_data(songs):
 			%(app_name)s)""",song_list)
 	conn.commit()
 	print "retrieved",counter,"songs"       
-        return song_list
+	return json.dumps({'songs':song_list})
 
 def artist_info(song_id,access_token):
 	song_info = fb_call(song_id,args={'access_token': access_token})
@@ -436,7 +442,12 @@ def index():
                          args={'access_token': access_token, 'limit': 16})
         
 	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
-        
+
+	import HTMLParser
+	parser = HTMLParser.HTMLParser()
+	songs_raw = parser.unescape(songs)
+
+
 	#song_list   = song_data(songs)
 	
 	#artist_list = update_artist_data(access_token)
@@ -465,7 +476,7 @@ def index():
             'songs.html', app_id=FB_APP_ID, token=access_token, likes=likes,
             friends=friends, photos=photos, songs=songs, app_friends=app_friends, app=fb_app,
             me=me, POST_TO_WALL=POST_TO_WALL, SEND_TO=SEND_TO, url=url,
-            channel_url=channel_url, name=FB_APP_NAME)
+            channel_url=channel_url, name=FB_APP_NAME,songs_raw=songs_raw)
     else:
         return render_template('login.html', app_id=FB_APP_ID, token=access_token, 
 			url=request.url, channel_url=channel_url, name=FB_APP_NAME)

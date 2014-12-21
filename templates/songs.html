@@ -1,15 +1,32 @@
 {% extends "base.html" %}
+<head>
+    {% block headjs %}
+        <script type="text/javascript">
+            $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+
+            $(function() {
+                $('a#update-list-db').bind('click', function() {
+                  $.getJSON($SCRIPT_ROOT + '/_song_data', {
+                    token: ''
+                  }, function(data) {
+                    $("#songs-list-result").text(data.result);
+                  });
+                  return false;
+                });
+              });
+        </script>
+    {% endblock %}
+</head>
 
 {% block content %}
 
-      <h1>Here are the songs you listen to.</h1>
+      <div class="row">
+        <div clas="col-md-6">
+            <a href="#" id="update-list-db" class="btn btn-default" role="button">Update Database</a>
+            <div id="songs-list-result">
 
-      <div class="list">
-        <h3>Recent Songs</h3>
-        <ul class="songs"> {% for song in songs.data %}
-        <li>	
-            {{song.data.song.title}}
-        </li>{% endfor %}</ul>
+            </div>
+        </div>
       </div>
 
 {% endblock%}
