@@ -239,7 +239,11 @@ def song_data():
 			%(app_name)s)""",song_list)
 	conn.commit()
 	print "retrieved",counter,"songs"       
-	return json.dumps({'songs':song_list})
+	
+	artist_list = update_artist_data(access_token)
+	history     = get_agg_history(song_list)	
+	
+	return json.dumps({'user_palate':history})
 
 def artist_info(song_id,access_token):
 	song_info = fb_call(song_id,args={'access_token': access_token})
@@ -443,10 +447,6 @@ def index():
         
 	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
 
-	import HTMLParser
-	parser = HTMLParser.HTMLParser()
-	songs_raw = parser.unescape(songs)
-
 
 	#song_list   = song_data(songs)
 	
@@ -454,7 +454,7 @@ def index():
 	#history     = get_agg_history(song_list)	
 	#recd_song   = recs(history)
 	
-	recs = palate_playlist(fb_user_id,spotify_token)
+	#recs = palate_playlist(fb_user_id,spotify_token)
 
 	redir = get_home() + 'close/'
         POST_TO_WALL = ("https://www.facebook.com/dialog/feed?redirect_uri=%s&"
