@@ -11,7 +11,7 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 import time
 
 import requests
-from flask import Flask, request, redirect, render_template, url_for,session
+from flask import Flask, request, redirect, render_template, url_for,session,jsonify
 from flask_oauthlib.client import OAuth, OAuthException
 
 from test_postgres import *
@@ -187,11 +187,17 @@ def get_token():
 
         return token
 
+@app.route('/_song_data', methods=['GET','POST'])
+def song_data():
+    	access_token = get_token()
+	if not access_token:
+		return json.dumps({'message': 'No Token'})
+	
+	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
 
-def song_data(songs):
         if "error" in songs:
                 print songs["error"]
-                return
+		return json.dumps({'message':'Error'})
 
         moreSongsURI = songs.get("paging",{}).get("next")
 
@@ -233,7 +239,12 @@ def song_data(songs):
 			%(app_name)s)""",song_list)
 	conn.commit()
 	print "retrieved",counter,"songs"       
-        return song_list
+	
+	artist_list = update_artist_data(access_token)
+	history     = get_agg_history(song_list)	
+	
+	return json.dumps({'user_palate':history})
+
 
 def artist_info(song_id,access_token):
 	song_info = fb_call(song_id,args={'access_token': access_token})
@@ -331,14 +342,87 @@ def get_agg_history(song_list):
 	else:
 		print "Bios up to date"
 
-	cur.execute("""select a.*,rovi_artist_id from user_palate a
+
+	conn,cur = open_con()
+	cur.execute("""select b.music_genres,a.artist_name,a.listens from user_palate a
 			left join fb_rovi_sync b
 			on a.fb_artist_id = b.fb_artist_id
 			where a.fb_user_id='{}';""".format(uid))
 	history = cur.fetchall()
-	
+	history = [{'genre':row[0],'artist':row[1],'count':row[2]} for row in history]	
 
-	return history
+	return json.dumps(history)
+
+
+@app.route('/_user_palate', methods=['GET','POST'])
+def user_palate():
+
+	uid = request.args.get('uid')		
+	conn,cur = open_con()
+	cur.execute("""select b.music_genres,a.artist_name,a.listens from user_palate a
+			left join fb_rovi_sync b
+			on a.fb_artist_id = b.fb_artist_id
+			where a.fb_user_id='{}' and a.listens > 10 limit 40; """.format(uid))
+	history = cur.fetchall()
+	history = [{'genre':row[0],'artist':row[1],'count':row[2]} for row in history]	
+
+	return json.dumps(history)
+
+@app.route('/_generate_playlist', methods=['GET','POST'])
+def palate_playlist():
+
+	spotify_token = request.args.get('spotify_token')		
+	uid = request.args.get('uid')		
+        conn,cur = open_con()
+        cur.execute("""with top5_compare as (
+                                select meta1.artist_name as artist1, meta2.artist_name as artist2,sim.score,
+                                  rank() OVER (PARTITION BY artist1 ORDER BY score DESC) AS rank
+                                from artist_sim sim
+                                join fb_rovi_sync meta1
+                                 on sim.artist1=meta1.rovi_artist_id
+                                join fb_rovi_sync meta2
+                                 on sim.artist2=meta2.rovi_artist_id
+                                join 
+                                        (select rovi_artist_id from user_palate
+                                        join fb_rovi_sync meta3
+                                         on user_palate.fb_artist_id = meta3.fb_artist_id
+                                        where user_palate.fb_user_id='{}'
+                                        limit 5) palate
+                                on sim.artist1= palate.rovi_artist_id
+
+
+                        ) select * from top5_compare
+                          where rank < 5
+                          ;""".format(uid))
+        recs = [{"artist1name":row[0],"artist2name": row[1],"score":row[2],"rank":row[3]} for row in cur.fetchall()]
+        for_spotify = [row.get('artist2name') for row in recs]
+        for_spotify = list(set(for_spotify))
+        
+        track_uris = []
+        track_uris = [get_spfy_tracks(artist) for artist in for_spotify][0]
+
+        sptfy_header = {'Authorization': 'Bearer {}'.format(spotify_token)}
+        sptfy_user_response = requests.get('https://api.spotify.com/v1/me',headers=sptfy_header)
+        sptfy_user_url = sptfy_user_response.json().get('href')
+        init_playlist_url = sptfy_user_url + '/playlists'
+        data = {'name' : 'PlayPalate {}'.format(time.strftime("%m-%d-%Y")),
+                'public' : 'false'}
+
+	response = requests.post(init_playlist_url,data=json.dumps(data),headers=sptfy_header).json()
+	playlist_url = response.get('href')
+	playlist_uri = response.get('uri')
+	
+        add_track_url = playlist_url + '/tracks'
+        #replace tracks. need to write a different method to append
+	data = {'uris' : track_uris[0:99]}
+        add_tracks_response = requests.post(add_track_url,data=json.dumps(data),headers=sptfy_header)
+        print 'tracks added: ',add_tracks_response.ok
+	if not add_tracks_response.ok:
+		print add_tracks_response.text
+
+
+        return json.dumps({'playlist_uri':playlist_uri})
+
 
 def update_artist_sim(bio_response):
 	
@@ -414,10 +498,14 @@ def get_rovi_id(fb_artist_id_tuple):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    spotify_login = 'http://' + request.host + '/spotify-login' 
-    spotify_token = get_spotify_oauth_token()
 
+    try:
+	    spotify_token = get_spotify_oauth_token()
+    except:
+	    spotify_token = None
     access_token = get_token()
+    print spotify_token
+    print access_token
     channel_url = url_for('get_channel', _external=True)
     channel_url = channel_url.replace('http:', '').replace('https:', '')
 
@@ -435,14 +523,15 @@ def index():
                          args={'access_token': access_token, 'limit': 16})
         
 	songs = fb_call('me/music.listens',args={'access_token': access_token, 'limit':100})
-        
+
+
 	#song_list   = song_data(songs)
 	
 	#artist_list = update_artist_data(access_token)
 	#history     = get_agg_history(song_list)	
 	#recd_song   = recs(history)
 	
-	recs = palate_playlist(fb_user_id,spotify_token)
+	#recs = palate_playlist(fb_user_id,spotify_token)
 
 	redir = get_home() + 'close/'
         POST_TO_WALL = ("https://www.facebook.com/dialog/feed?redirect_uri=%s&"
@@ -461,14 +550,13 @@ def index():
         url = request.url
 
         return render_template(
-            'index.html', app_id=FB_APP_ID, token=access_token, likes=likes,
+            'songs.html', app_id=FB_APP_ID, token=access_token, likes=likes,
             friends=friends, photos=photos, songs=songs, app_friends=app_friends, app=fb_app,
             me=me, POST_TO_WALL=POST_TO_WALL, SEND_TO=SEND_TO, url=url,
-            channel_url=channel_url, name=FB_APP_NAME)
+            channel_url=channel_url, name=FB_APP_NAME,fb_user_id=fb_user_id,spotify_token=spotify_token)
     else:
         return render_template('login.html', app_id=FB_APP_ID, token=access_token, 
-			url=request.url, channel_url=channel_url, name=FB_APP_NAME,
-			spotify_login=spotify_login)
+			url=request.url, channel_url=channel_url, name=FB_APP_NAME)
 
 @app.route('/channel.html', methods=['GET', 'POST'])
 def get_channel():
@@ -515,10 +603,13 @@ def spotify_authorized():
 def get_spotify_oauth_token():
 	    return session.get('oauth_token')[0]
 
-
-@app.route('/close/', methods=['GET', 'POST'])
+@app.route('/close', methods=['GET', 'POST'])
 def close():
     return render_template('close.html')
+
+@app.route('/home', methods=['GET', 'POST'])
+def close():
+    return render_template('home.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

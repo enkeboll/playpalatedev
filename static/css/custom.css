@@ -1,0 +1,44 @@
+/* Custom Play Palate CSS */
+/*
+
+dark 		#121314
+light dark 	#222326
+light gray 	#f7f9ff
+dark gray 	#949599 
+green 		#84bd00
+*/
+body {
+	padding-top: 0px;
+	background: #222326;
+}
+
+#ajax-loader-bg {
+	display: none;
+}
+
+.chart {
+	color: #f7f9ff;
+}
+.chart rect {
+  fill: #f7f9ff;
+  stroke: #84bd00;
+}
+
+.chart text {
+  fill: #dbdce2;
+  font: 10px sans-serif;
+  text-anchor: middle;
+}
+
+
+.axis text{
+  font: 10px sans-serif;
+}
+
+.axis path, .axis line{
+  fill: none;
+  stroke : #121314;
+  shape-rendering: crispEdges;
+}
+
+

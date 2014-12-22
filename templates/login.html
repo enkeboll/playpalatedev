@@ -1,17 +1,19 @@
+<!-- extend base layout -->
 {% extends "base.html" %}
 
-{% block topbar %}
-
-
-  <div id="fb-root"></div>
-  <h1>Welcome</h1>
-  <div id="login-flow">
-    <fb:login-button data-scope="user_likes,user_photos,user_photo_video_tags,user_actions.music" show-faces="true"></fb:login-button>
-  </div>
-  <div id="spotify-login">
-	  <a href='{{ spotify_login }}'>Login to Spotify</a>
-
-{% endblock %}
-
 {% block content %}
+
+
+<div class="fluid-marketing">
+
+
+ <div id="login-flow">
+	 <fb:login-button data-scope="user_likes,user_photos,user_photo_video_tags,user_actions.music" show-faces="true"></fb:login-button>
+ </div>
+	<div class="span6">
+		<a href={{ url_for('login') }} >
+		<img src="/static/images/log_in-desktop-large.png" alt="log_in-spotify">
+	</a>
+	</div>
+</div>
 {% endblock %}
