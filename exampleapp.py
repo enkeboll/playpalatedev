@@ -368,6 +368,56 @@ def user_palate():
 
 	return json.dumps(history)
 
+@app.route('/_generate_playlist', methods=['GET','POST'])
+def palate_playlist():
+
+	spotify_token = request.args.get('spotify_token')		
+	uid = request.args.get('uid')		
+        conn,cur = open_con()
+        cur.execute("""with top5_compare as (
+                                select meta1.artist_name as artist1, meta2.artist_name as artist2,sim.score,
+                                  rank() OVER (PARTITION BY artist1 ORDER BY score DESC) AS rank
+                                from artist_sim sim
+                                join fb_rovi_sync meta1
+                                 on sim.artist1=meta1.rovi_artist_id
+                                join fb_rovi_sync meta2
+                                 on sim.artist2=meta2.rovi_artist_id
+                                join 
+                                        (select rovi_artist_id from user_palate
+                                        join fb_rovi_sync meta3
+                                         on user_palate.fb_artist_id = meta3.fb_artist_id
+                                        where user_palate.fb_user_id='{}'
+                                        limit 5) palate
+                                on sim.artist1= palate.rovi_artist_id
+
+
+                        ) select * from top5_compare
+                          where rank < 5
+                          ;""".format(uid))
+        recs = [{"artist1name":row[0],"artist2name": row[1],"score":row[2],"rank":row[3]} for row in cur.fetchall()]
+        for_spotify = [row.get('artist2name') for row in recs]
+        for_spotify = list(set(for_spotify))
+        
+        track_uris = []
+        track_uris = [get_spfy_tracks(artist) for artist in for_spotify][0]
+
+        sptfy_header = {'Authorization': 'Bearer {}'.format(spotify_token)}
+        sptfy_user_response = requests.get('https://api.spotify.com/v1/me',headers=sptfy_header)
+        sptfy_user_url = sptfy_user_response.json().get('href')
+        init_playlist_url = sptfy_user_url + '/playlists'
+        data = {'name' : 'PlayPalate {}'.format(time.strftime("%m-%d-%Y")),
+                'public' : 'false'}
+        playlist_url = requests.post(init_playlist_url,data=json.dumps(data),headers=sptfy_header).json().get('href')
+	response = requests.post(init_playlist_url,data=json.dumps(data),headers=sptfy_header).json()
+	playlist_url = response.get('href')
+	
+        add_track_url = playlist_url + '/tracks'
+        #replace tracks. need to write a different method to append
+        data = {'uris' : track_uris}
+        add_tracks_response = requests.post(add_track_url,data=json.dumps(data),headers=sptfy_header)
+        print 'tracks added: ',add_tracks_response.ok
+
+        return json.dumps(recs)
 
 
 def update_artist_sim(bio_response):
@@ -496,7 +546,7 @@ def index():
             'songs.html', app_id=FB_APP_ID, token=access_token, likes=likes,
             friends=friends, photos=photos, songs=songs, app_friends=app_friends, app=fb_app,
             me=me, POST_TO_WALL=POST_TO_WALL, SEND_TO=SEND_TO, url=url,
-            channel_url=channel_url, name=FB_APP_NAME,fb_user_id=fb_user_id)
+            channel_url=channel_url, name=FB_APP_NAME,fb_user_id=fb_user_id,spotify_token=spotify_token)
     else:
         return render_template('login.html', app_id=FB_APP_ID, token=access_token, 
 			url=request.url, channel_url=channel_url, name=FB_APP_NAME)
@@ -546,8 +596,7 @@ def spotify_authorized():
 def get_spotify_oauth_token():
 	    return session.get('oauth_token')[0]
 
-
-@app.route('/close/', methods=['GET', 'POST'])
+@app.route('/close', methods=['GET', 'POST'])
 def close():
     return render_template('close.html')
 

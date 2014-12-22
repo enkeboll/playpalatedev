@@ -4,7 +4,8 @@
         <script type="text/javascript">
             $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
 
-	    var user_palate = null;
+		var user_palate = null;
+		var playlist = null;
             $(function() {
                 $('a#update-list-db').bind('click', function() {
                   $.getJSON($SCRIPT_ROOT + '/_song_data',{
@@ -12,6 +13,16 @@
                   }, function(data) {
                     user_palate = data.user_palate;
                   });
+                  return false;
+                });
+                $('a#generate-playlist').bind('click', function() {
+                  $.getJSON($SCRIPT_ROOT + '/_generate_playlist',{
+		     uid: '{{ fb_user_id }}',
+		     spotify_token: '{{ spotify_token }}'
+                  }, function(data) {
+		  $("#response").append('<iframe height="1000px" width="500px" scrolling="yes" src="https://embed.spotify.com/?uri=spotify:user:erebore:playlist:788MOXyTfcUb1tdw4oC7KJ" frameborder="0" allowtransparency="true"></iframe>');
+		  });
+
                   return false;
                 });
               });
@@ -52,13 +63,18 @@ chart text {
 {% block content %}
 
       <div class="row">
-        <div clas="col-md-6">
-            <a href="#" id="update-list-db" class="btn btn-default" role="button">Update Database</a>
-            <div id="songs-list-result">
-            </div>
-<svg class="chart"></svg>
-        </div>
+	      <div class="col-md-7" id="main">
+		      <div id="list-db-result">
+			      <svg class="chart"></svg>
+		      </div>
+
+	      </div>
+	
+	<div class="col-md-5" id="sidebar">
+		      <div id="response">
+		      </div>
       </div>
+	</div>
 
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script>
@@ -108,8 +124,8 @@ d3.json($SCRIPT_ROOT + '/_user_palate?uid=' + '{{fb_user_id}}', function(error, 
       .attr("height", function(d) { 
         return height - padding/2 - y(d.count); 
       })
-      .attr("width", x.rangeBand())  //set width base on range on ordinal data
-      .attr("fill","steel-blue");
+      .attr("width", x.rangeBand()-5);  //set width base on range on ordinal data
+
  
 
  
@@ -123,7 +139,7 @@ d3.json($SCRIPT_ROOT + '/_user_palate?uid=' + '{{fb_user_id}}', function(error, 
         .call(xAxis)
 	  .selectAll("text")
 	    .style("text-anchor", "end")
-            .attr("dx", "-1em")
+            .attr("dx", "-1.5em")
             .attr("dy", "-1em")
             .attr("transform", function(d) {
                 return "rotate(-45)" 
@@ -149,6 +165,6 @@ function type(d) {
   }
 </script>
 
-<div id="chart"></div> 
+
 
 {% endblock%}
