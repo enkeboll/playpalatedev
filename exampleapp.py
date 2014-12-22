@@ -407,17 +407,21 @@ def palate_playlist():
         init_playlist_url = sptfy_user_url + '/playlists'
         data = {'name' : 'PlayPalate {}'.format(time.strftime("%m-%d-%Y")),
                 'public' : 'false'}
-        playlist_url = requests.post(init_playlist_url,data=json.dumps(data),headers=sptfy_header).json().get('href')
+
 	response = requests.post(init_playlist_url,data=json.dumps(data),headers=sptfy_header).json()
 	playlist_url = response.get('href')
+	playlist_uri = response.get('uri')
 	
         add_track_url = playlist_url + '/tracks'
         #replace tracks. need to write a different method to append
-        data = {'uris' : track_uris}
+	data = {'uris' : track_uris[0:99]}
         add_tracks_response = requests.post(add_track_url,data=json.dumps(data),headers=sptfy_header)
         print 'tracks added: ',add_tracks_response.ok
+	if not add_tracks_response.ok:
+		print add_tracks_response.text
 
-        return json.dumps(recs)
+
+        return json.dumps({'playlist_uri':playlist_uri})
 
 
 def update_artist_sim(bio_response):
@@ -495,7 +499,10 @@ def get_rovi_id(fb_artist_id_tuple):
 @app.route('/', methods=['GET', 'POST'])
 def index():
 
-    spotify_token = get_spotify_oauth_token()
+    try:
+	    spotify_token = get_spotify_oauth_token()
+    except:
+	    spotify_token = None
     access_token = get_token()
     print spotify_token
     print access_token

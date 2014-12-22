@@ -20,11 +20,12 @@
 		     uid: '{{ fb_user_id }}',
 		     spotify_token: '{{ spotify_token }}'
                   }, function(data) {
-		  $("#response").append('<iframe height="1000px" width="500px" scrolling="yes" src="https://embed.spotify.com/?uri=spotify:user:erebore:playlist:788MOXyTfcUb1tdw4oC7KJ" frameborder="0" allowtransparency="true"></iframe>');
+		  $("#response").append($('<iframe height=1000px width=500px src="https://embed.spotify.com/?uri=' + data.playlist_uri + '" frameborder="0" allowtransparency="true"></iframe>'));
 		  });
 
                   return false;
-                });
+		  });
+
               });
         </script>
     {% endblock %}
@@ -72,6 +73,7 @@ chart text {
 	
 	<div class="col-md-5" id="sidebar">
 		      <div id="response">
+		      
 		      </div>
       </div>
 	</div>
