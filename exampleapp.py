@@ -245,6 +245,7 @@ def song_data():
 	
 	return json.dumps({'user_palate':history})
 
+
 def artist_info(song_id,access_token):
 	song_info = fb_call(song_id,args={'access_token': access_token})
 	if "error" in song_info:
@@ -341,14 +342,33 @@ def get_agg_history(song_list):
 	else:
 		print "Bios up to date"
 
-	cur.execute("""select a.*,rovi_artist_id from user_palate a
+
+	conn,cur = open_con()
+	cur.execute("""select b.music_genres,a.artist_name,a.listens from user_palate a
 			left join fb_rovi_sync b
 			on a.fb_artist_id = b.fb_artist_id
 			where a.fb_user_id='{}';""".format(uid))
 	history = cur.fetchall()
-	
+	history = [{'genre':row[0],'artist':row[1],'count':row[2]} for row in history]	
 
-	return history
+	return json.dumps(history)
+
+
+@app.route('/_user_palate', methods=['GET','POST'])
+def user_palate():
+
+	uid = request.args.get('uid')		
+	conn,cur = open_con()
+	cur.execute("""select b.music_genres,a.artist_name,a.listens from user_palate a
+			left join fb_rovi_sync b
+			on a.fb_artist_id = b.fb_artist_id
+			where a.fb_user_id='{}' and a.listens > 10 limit 40; """.format(uid))
+	history = cur.fetchall()
+	history = [{'genre':row[0],'artist':row[1],'count':row[2]} for row in history]	
+
+	return json.dumps(history)
+
+
 
 def update_artist_sim(bio_response):
 	
@@ -476,7 +496,7 @@ def index():
             'songs.html', app_id=FB_APP_ID, token=access_token, likes=likes,
             friends=friends, photos=photos, songs=songs, app_friends=app_friends, app=fb_app,
             me=me, POST_TO_WALL=POST_TO_WALL, SEND_TO=SEND_TO, url=url,
-            channel_url=channel_url, name=FB_APP_NAME,songs_raw=songs_raw)
+            channel_url=channel_url, name=FB_APP_NAME,fb_user_id=fb_user_id)
     else:
         return render_template('login.html', app_id=FB_APP_ID, token=access_token, 
 			url=request.url, channel_url=channel_url, name=FB_APP_NAME)

@@ -4,12 +4,13 @@
         <script type="text/javascript">
             $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
 
+	    var user_palate = null;
             $(function() {
                 $('a#update-list-db').bind('click', function() {
-                  $.getJSON($SCRIPT_ROOT + '/_song_data', {
+                  $.getJSON($SCRIPT_ROOT + '/_song_data',{
                     token: ''
                   }, function(data) {
-                    $("#songs-list-result").text(data.result);
+                    user_palate = data.user_palate;
                   });
                   return false;
                 });
@@ -18,15 +19,136 @@
     {% endblock %}
 </head>
 
+<style>
+    {% block headstyle %}
+
+
+chart rect {
+  fill: #4aaeea;
+}
+
+chart text {
+  fill: black;
+  font: 10px sans-serif;
+  text-anchor: middle;
+}
+
+
+.axis text{
+  font: 10px sans-serif;
+}
+
+.axis path, .axis line{
+  fill: none;
+  stroke : black;
+  shape-rendering: crispEdges;
+}
+
+
+
+    {% endblock %}
+</style>
+
 {% block content %}
 
       <div class="row">
         <div clas="col-md-6">
             <a href="#" id="update-list-db" class="btn btn-default" role="button">Update Database</a>
             <div id="songs-list-result">
-
             </div>
+<svg class="chart"></svg>
         </div>
       </div>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var margin ={top:20, right:30, bottom:60, left:40},
+    width=700-margin.left - margin.right, 
+    height=400-margin.top-margin.bottom,
+    padding = 100;
+
+// scale to ordinal because x axis is not numerical
+var x = d3.scale.ordinal().rangeRoundBands([0, width], .1);
+
+//scale to numerical value by height
+var y = d3.scale.linear().range([height-padding, 0]);
+
+var chart = d3.select(".chart")  
+              .attr("width", width+(2*margin.left)+margin.right)    //set width
+              .attr("height", height+margin.top+margin.bottom);  //set height
+var xAxis = d3.svg.axis()
+              .scale(x)
+              .orient("bottom");  //orient bottom because x-axis will appear below the bars
+
+var yAxis = d3.svg.axis()
+              .scale(y)
+              .orient("left");
+
+d3.json($SCRIPT_ROOT + '/_user_palate?uid=' + '{{fb_user_id}}', function(error, data){
+  x.domain(data.map(function(d){ return d.artist}));
+  y.domain([0, d3.max(data, function(d){return d.count})]);
+  
+  var bar = chart.selectAll("g")
+                    .data(data)
+                  .enter()
+                    .append("g")
+                    .attr("transform", function(d, i){
+                      return "translate("+(x(d.artist) + margin.left/2 ) +", 0)";
+                    });
+  
+  bar.append("rect")
+      .transition()
+      .attr("y", function(d) { 
+        return y(d.count)-padding/2; 
+      })
+      .attr("x", function(d,i){
+        return x.rangeBand()+(margin.left/2);
+      })
+      .attr("height", function(d) { 
+        return height - padding/2 - y(d.count); 
+      })
+      .attr("width", x.rangeBand())  //set width base on range on ordinal data
+      .attr("fill","steel-blue");
+ 
+
+ 
+  bar.append("text")
+      .attr("x", x.rangeBand()+margin.left )
+      .attr("transform","rotate(-45)");
+  
+  chart.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate("+(1.5*margin.left)+","+ (height-padding+3) +")")        
+        .call(xAxis)
+	  .selectAll("text")
+	    .style("text-anchor", "end")
+            .attr("dx", "-1em")
+            .attr("dy", "-1em")
+            .attr("transform", function(d) {
+                return "rotate(-45)" 
+                });
+
+
+ 
+  chart.append("g")
+        .attr("class", "y axis")
+        .attr("transform", "translate(50,0)")
+        .call(yAxis)
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 6)
+        .attr("dy", "-3em")
+        .style("text-anchor", "end")
+        .text("Listens");
+});
+
+function type(d) {
+    d.count = +d.count; // coerce to number
+    return d;
+  }
+</script>
+
+<div id="chart"></div> 
 
 {% endblock%}
