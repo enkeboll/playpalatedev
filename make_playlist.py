@@ -64,8 +64,10 @@ def get_spfy_tracks(artist_name,track_uris=[]):
 	link = r.json().get("artists",{}).get("items",[None])[0].get("href")
 
 	top_tracks_url = link + "/top-tracks"
+
 	r = requests.get(top_tracks_url,params={'country':'US',"limit":"2"})
 	print 'top_tracks_url response:',r.content
+
 	response = r.json()
 
 	for item in response.get('tracks'):
