@@ -126,6 +126,11 @@ app.config.from_object('conf.Config')
 app.secret_key = os.environ.get('SPOTIFY_SECRET')
 oauth = OAuth(app)
 
+#for heroku-hosted
+app.config.update(dict(
+	  PREFERRED_URL_SCHEME = 'https'
+	  ))
+
 spotify = oauth.remote_app(
 	'spotify',
 	consumer_key=SPOTIFY_APP_ID,
