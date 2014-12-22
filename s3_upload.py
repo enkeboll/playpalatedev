@@ -19,7 +19,8 @@ def s3_upload_string(string,filename):
 		print 'Failure to upload {}'.format(filename)
 		print e
 		return
-def s3_open_conn():
+
+def get_token_dict():
 	AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY')
 	AWS_SECRET_KEY = os.environ.get('AWS_SECRET_KEY')
 	S3_BUCKET = os.environ.get('S3_BUCKET')
@@ -27,8 +28,11 @@ def s3_open_conn():
 	try:
 		s3 = boto.connect_s3(AWS_ACCESS_KEY_ID,AWS_SECRET_KEY)
 		bucket = s3.get_bucket('playpalate')
-		k = boto.s3.key.Key(bucket)
-		return k
+		rs = bucket.list()
+		token_dict = {}
+		for key in rs:
+			    token_dict[key.name[0:-8]]=key.get_contents_as_string().strip('roviLink')
+		return token_dict
 	except Exception, e:
 		print 'Failure to connect to s3'
 		print e

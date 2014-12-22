@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+<head>
+    {% block headjs %}
+        <script type="text/javascript">
+            $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+
+		var user_palate = null;
+		var playlist = null;
+            $(function() {
+                $('a#update-list-db').bind('click', function() {
+                  $.getJSON($SCRIPT_ROOT + '/_song_data',{
+                    token: ''
+                  }, function(data) {
+                    user_palate = data.user_palate;
+                  });
+                  return false;
+                });
+                $('a#generate-playlist').bind('click', function() {
+                  $.getJSON($SCRIPT_ROOT + '/_generate_playlist',{
+		     uid: '{{ fb_user_id }}',
+		     spotify_token: '{{ spotify_token }}'
+                  }, function(data) {
+		  $("#response").append($('<iframe height=1000px width=500px src="https://embed.spotify.com/?uri=' + data.playlist_uri + '" frameborder="0" allowtransparency="true"></iframe>'));
+		  });
+
+                  return false;
+		  });
+
+              });
+        </script>
+    {% endblock %}
+</head>
+
+<style>
+    {% block headstyle %}
+
+
+chart rect {
+  fill: #4aaeea;
+}
+
+chart text {
+  fill: black;
+  font: 10px sans-serif;
+  text-anchor: middle;
+}
+
+
+.axis text{
+  font: 10px sans-serif;
+}
+
+.axis path, .axis line{
+  fill: none;
+  stroke : black;
+  shape-rendering: crispEdges;
+}
+
+
+
+    {% endblock %}
+</style>
+
+{% block content %}
+
+      <div class="row">
+	      <div class="col-md-7" id="main">
+		      <div id="list-db-result">
+			      <svg class="chart"></svg>
+		      </div>
+
+	      </div>
+	
+	<div class="col-md-5" id="sidebar">
+		      <div id="response">
+		      
+		      </div>
+      </div>
+	</div>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var margin ={top:20, right:30, bottom:60, left:40},
+    width=700-margin.left - margin.right, 
+    height=400-margin.top-margin.bottom,
+    padding = 100;
+
+// scale to ordinal because x axis is not numerical
+var x = d3.scale.ordinal().rangeRoundBands([0, width], .1);
+
+//scale to numerical value by height
+var y = d3.scale.linear().range([height-padding, 0]);
+
+var chart = d3.select(".chart")  
+              .attr("width", width+(2*margin.left)+margin.right)    //set width
+              .attr("height", height+margin.top+margin.bottom);  //set height
+var xAxis = d3.svg.axis()
+              .scale(x)
+              .orient("bottom");  //orient bottom because x-axis will appear below the bars
+
+var yAxis = d3.svg.axis()
+              .scale(y)
+              .orient("left");
+
+d3.json($SCRIPT_ROOT + '/_user_palate?uid=' + '{{fb_user_id}}', function(error, data){
+  x.domain(data.map(function(d){ return d.artist}));
+  y.domain([0, d3.max(data, function(d){return d.count})]);
+  
+  var bar = chart.selectAll("g")
+                    .data(data)
+                  .enter()
+                    .append("g")
+                    .attr("transform", function(d, i){
+                      return "translate("+(x(d.artist) + margin.left/2 ) +", 0)";
+                    });
+  
+  bar.append("rect")
+      .transition()
+      .attr("y", function(d) { 
+        return y(d.count)-padding/2; 
+      })
+      .attr("x", function(d,i){
+        return x.rangeBand()+(margin.left/2);
+      })
+      .attr("height", function(d) { 
+        return height - padding/2 - y(d.count); 
+      })
+      .attr("width", x.rangeBand()-5);  //set width base on range on ordinal data
+
+ 
+
+ 
+  bar.append("text")
+      .attr("x", x.rangeBand()+margin.left )
+      .attr("transform","rotate(-45)");
+  
+  chart.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate("+(1.5*margin.left)+","+ (height-padding+3) +")")        
+        .call(xAxis)
+	  .selectAll("text")
+	    .style("text-anchor", "end")
+            .attr("dx", "-1.5em")
+            .attr("dy", "-1em")
+            .attr("transform", function(d) {
+                return "rotate(-45)" 
+                });
+
+
+ 
+  chart.append("g")
+        .attr("class", "y axis")
+        .attr("transform", "translate(50,0)")
+        .call(yAxis)
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 6)
+        .attr("dy", "-3em")
+        .style("text-anchor", "end")
+        .text("Listens");
+});
+
+function type(d) {
+    d.count = +d.count; // coerce to number
+    return d;
+  }
+</script>
+
+
+
+{% endblock%}

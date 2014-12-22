@@ -1,169 +1,127 @@
 <!DOCTYPE html>
-<html xmlns:fb="http://ogp.me/ns/fb#" lang="en">
+<html>
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
+    {% if title %}
+    <title>{{ title }} - PlayPalate</title>
+    {% else %}
+    <title>PlayPalate</title>
+    {% endif %}
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/static/css/custom.css" rel="stylesheet">
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+  <!-- start head js block -->
+    {% block headjs %}
+    {% endblock headjs %}
+  <!-- end head js block -->
+<style type="text/css">
+#ajax-loader-bg {
+ position: fixed;
+ height: 100%;
+ width: 100%;
+ background: rgba(0, 0, 0, 0.45);
+ top: 0;
+ left: 0;
+ z-index: 99; }
 
-    <!-- We get the name of the app out of the information fetched -->
-    <title>{{ name }}</title>
-    <link rel="stylesheet" href="static/screen.css" media="Screen" type="text/css" />
-    <link rel="stylesheet" href="static/mobile.css" media="handheld, only screen and (max-width: 480px), only screen and (max-device-width: 480px)" type="text/css" />
+#ajax-loader-msg {
+ position: absolute;
+ z-index: 100;
+ background: #FFF;
+ margin-left: -30%;
+ width: 60%;
+ padding: 1.875rem;
+ border: solid 1px #666;
+ box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+ top: 100px;
+ left: 50%; }
 
-    <!--[if IEMobile]>
-      <link rel="stylesheet" href="static/mobile.css" media="screen" type="text/css"  />
-    <![endif]-->
+</style>
+ 
 
-    <!-- These are Open Graph tags.  They add meta data to your  -->
-    <!-- site that facebook uses when your content is shared     -->
-    <!-- over facebook.  You should fill these tags in with      -->
-    <!-- your data.  To learn more about Open Graph, visit       -->
-    <!-- 'https://developers.facebook.com/docs/opengraph/'       -->
-    <meta content="" property="og:title" />
-    <meta content="" property="og:type" />
-    <meta content="" property="og:url" />
-    <meta content="" property="og:image" />
-    <meta content="" property="og:site_name" />
-    <meta property="og:description" content="My First App" />
-    <meta content="{{app_id}}" property="fb:app_id" />
 
-    <script type="text/javascript" src="/static/jquery-1.7.1.min.js"></script>
-       <script type="text/javascript">
-      function logResponse(response) {
-        if (console && console.log) {
-          console.log('The response was', response);
-        }
-      }
-
-      $(function(){
-        // Set up so we handle click on the buttons
-        $('#postToWall').click(function() {
-          FB.ui(
-            {
-              method : 'feed',
-              link   : $(this).attr('data-url')
-            },
-            function (response) {
-              // If response is null the user canceled the dialog
-              if (response != null) {
-                logResponse(response);
-              }
-            }
-          );
-        });
-
-        $('#sendToFriends').click(function() {
-          FB.ui(
-            {
-              method : 'send',
-              link   : $(this).attr('data-url')
-            },
-            function (response) {
-              // If response is null the user canceled the dialog
-              if (response != null) {
-                logResponse(response);
-              }
-            }
-          );
-        });
-
-        $('#sendRequest').click(function() {
-          FB.ui(
-            {
-              method  : 'apprequests',
-              message : $(this).attr('data-message')
-            },
-            function (response) {
-              // If response is null the user canceled the dialog
-              if (response != null) {
-                logResponse(response);
-              }
-            }
-          );
-        });
-      });
-    </script>
-
-    <!--[if IE]>
-      <script type="text/javascript">
-        var tags = ['header', 'section'];
-        while(tags.length)
-          document.createElement(tags.pop());
-      </script>
-    <![endif]-->
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ 
   </head>
   <body>
-      <script type="text/javascript">
-      window.fbAsyncInit = function() {
-        FB.init({
-          appId      : '{{ app_id }}', // App ID
-          // channelUrl : '{{ channel_url }}', // Channel File
-          status     : true, // check login status
-          cookie     : true, // enable cookies to allow the server to access the session
-          xfbml      : true // parse XFBML
-        });
+ <script type="text/javascript">
+	 window.fbAsyncInit = function() {
+	 FB.init({
+	 appId : '{{ app_id }}', // App ID
+	 // channelUrl : '{{ channel_url }}', // Channel File
+	 status : true, // check login status
+	 cookie : true, // enable cookies to allow the server to access the session
+	 xfbml : true // parse XFBML
+	 });
+	 // Listen to the auth.login which will be called when the user logs in
+	 // using the Login button
+	 FB.Event.subscribe('auth.login', function(response) {
+	 // We want to reload the page now so Ruby can read the cookie that the
+	 // Javascript SDK sat. But we don't want to use
+	 // window.location.reload() because if this is in a canvas there was a
+	 // post made to this page and a reload will trigger a message to the
+	 // user asking if they want to send data again.
+	 window.location = window.location;
+	 });
+	 FB.Canvas.setAutoGrow();
+	 };
+	 // Load the SDK Asynchronously
+	 (function(d, s, id) {
+	 var js, fjs = d.getElementsByTagName(s)[0];
+	 if (d.getElementById(id)) return;
+	 js = d.createElement(s); js.id = id;
+	 js.src = "//connect.facebook.net/en_US/all.js";
+	 fjs.parentNode.insertBefore(js, fjs);
+	 }(document, 'script', 'facebook-jssdk'));
+ </script>	 
 
-        // Listen to the auth.login which will be called when the user logs in
-        // using the Login button
-        FB.Event.subscribe('auth.login', function(response) {
-          // We want to reload the page now so Ruby can read the cookie that the
-          // Javascript SDK sat. But we don't want to use
-          // window.location.reload() because if this is in a canvas there was a
-          // post made to this page and a reload will trigger a message to the
-          // user asking if they want to send data again.
-          window.location = window.location;
-        });
+<div id="ajax-loader-bg">
+ <div id="ajax-loader-msg" class="text-center">
+   <h1>Loading...</h1>
+ </div>
+</div>
 
-        FB.Canvas.setAutoGrow();
-      };
+ <header>
+ 	<nav class="navbar navbar-default" role="navigation">
+  <div class="container-fluid">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="#">Playpalate</a>
+    </div>
 
-      // Load the SDK Asynchronously
-      (function(d, s, id) {
-        var js, fjs = d.getElementsByTagName(s)[0];
-        if (d.getElementById(id)) return;
-        js = d.createElement(s); js.id = id;
-        js.src = "//connect.facebook.net/en_US/all.js";
-        fjs.parentNode.insertBefore(js, fjs);
-      }(document, 'script', 'facebook-jssdk'));
-    </script>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav">
+    	<li><a href="#" id="generate-playlist">Generate Playlist</a></li> 
+      </ul>
 
-    <header class="clearfix">
-      {% block topbar %}
+      <ul class="nav navbar-nav navbar-right">
 
-      {% endblock %}
-    </header>
-    <section id="get-started">
-      <p>Welcome to your Facebook app, running on
-      <span>heroku</span>!</p>
-      <a class="button" href="https://devcenter.heroku.com/articles/facebook">Learn How to Edit This App</a>
-    </section>
-    {% block content%}
-    {% endblock %}
-    <section class="clearfix" id="guides">
-      <h1>Learn More About Heroku &amp; Facebook Apps</h1>
-      <ul>
-        <li>
-          <a class="icon heroku" href="https://www.heroku.com/" target="_top">Heroku</a>
-          <p>Learn more about
-          <a href="https://www.heroku.com/" target="_top">Heroku</a>, or read developer docs in the Heroku
-          <a href="https://devcenter.heroku.com/" target="_top">Dev Center</a>.</p>
-        </li>
-        <li>
-          <a class="icon websites" href="https://developers.facebook.com/docs/guides/web/" target="_top">Websites</a>
-          <p>Drive growth and engagement on your site with Facebook Login and Social Plugins.</p>
-        </li>
-        <li>
-          <a class="icon mobile-apps" href="https://developers.facebook.com/docs/guides/mobile/" target="_top">Mobile Apps</a>
-          <p>Integrate with our core experience by building apps that operate within Facebook.</p>
-        </li>
-        <li>
-          <a class="icon apps-on-facebook" href="https://developers.facebook.com/docs/guides/canvas/" target="_top">Apps on Facebook</a>
-          <p>Let users find and connect to their friends in mobile apps and games.</p>
-        </li>
-        <li>
-          <a href="https://fb-template-python-playpalate.herokuapp.com/privacy.html" target="_top">Privacy Policy</a>.</p>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Account<span class="caret"></span></a>
+          <ul class="dropdown-menu" role="menu">
+            <li><a href="#" id="update-list-db">Update Database</a></li>
+	    <li><a href="/privacy">Privacy</a></li>
+	   <li><a href="/logout">Log Out</a></li>
+          </ul>
         </li>
       </ul>
-    </section>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+	</header>
+	  <div id="body-content" class="container-fluid">
+      <div class="row">
+        <div class="span12">
+          {% block content %}{% endblock %}
+        </div>
+      </div>
+    </div>  <!-- END container-fluid -->
   </body>
 </html>
