@@ -581,11 +581,7 @@ def callback():
 
 @app.route('/spotify-login')
 def login():
-	callback = url_for(
-		'spotify_authorized',
-		#next=request.args.get('next') or request.referrer or None,
-		_external=True
-	   )
+	callback = 'https://playpalate-dev.herokuapp.com/spotify-login/authorized'
 	return spotify.authorize(callback=callback)
 
 @app.route('/spotify-login/authorized')
