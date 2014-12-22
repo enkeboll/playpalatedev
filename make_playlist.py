@@ -60,14 +60,19 @@ def get_spfy_tracks(artist_name,track_uris=[]):
 	base_url = "https://api.spotify.com/v1/search"
 	params["q"] = artist_name
 	r = requests.get(base_url,params=params)
+
 	link = r.json().get("artists",{}).get("items",[None])[0].get("href")
-	
+
 	top_tracks_url = link + "/top-tracks"
-	r = requests.get(top_tracks_url,params={'country':'US',"limit":"5"})
+
+	r = requests.get(top_tracks_url,params={'country':'US',"limit":"2"})
+	print 'top_tracks_url response:',r.content
+
 	response = r.json()
 
 	for item in response.get('tracks'):
 		track_uris.append('spotify:track:{}'.format(item.get('id')))
+
 	return track_uris
 
 

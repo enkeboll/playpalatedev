@@ -3,6 +3,7 @@ Jinja2==2.6
 Werkzeug==0.7.1
 simplejson==2.2.1
 wsgiref==0.1.2
-requests==0.10.4
+requests==2.4.3
 psycopg2==2.5.4
 boto==2.34.0
+Flask-OAuthlib==0.8.0

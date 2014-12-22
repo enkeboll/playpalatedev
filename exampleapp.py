@@ -126,6 +126,11 @@ app.config.from_object('conf.Config')
 app.secret_key = os.environ.get('SPOTIFY_SECRET')
 oauth = OAuth(app)
 
+#for heroku-hosted
+app.config.update(dict(
+	  PREFERRED_URL_SCHEME = 'https'
+	  ))
+
 spotify = oauth.remote_app(
 	'spotify',
 	consumer_key=SPOTIFY_APP_ID,
@@ -403,7 +408,8 @@ def palate_playlist():
 
         sptfy_header = {'Authorization': 'Bearer {}'.format(spotify_token)}
         sptfy_user_response = requests.get('https://api.spotify.com/v1/me',headers=sptfy_header)
-        sptfy_user_url = sptfy_user_response.json().get('href')
+	print 'sptify_user_response:',sptfy_user_response.text
+	sptfy_user_url = sptfy_user_response.json().get('href')
         init_playlist_url = sptfy_user_url + '/playlists'
         data = {'name' : 'PlayPalate {}'.format(time.strftime("%m-%d-%Y")),
                 'public' : 'false'}
@@ -569,11 +575,7 @@ def callback():
 
 @app.route('/spotify-login')
 def login():
-	callback = url_for(
-		'spotify_authorized',
-		#next=request.args.get('next') or request.referrer or None,
-		_external=True
-	   )
+	callback = 'https://playpalate-dev.herokuapp.com/spotify-login/authorized'
 	return spotify.authorize(callback=callback)
 
 @app.route('/spotify-login/authorized')
