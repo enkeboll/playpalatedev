@@ -408,7 +408,8 @@ def palate_playlist():
 
         sptfy_header = {'Authorization': 'Bearer {}'.format(spotify_token)}
         sptfy_user_response = requests.get('https://api.spotify.com/v1/me',headers=sptfy_header)
-        sptfy_user_url = sptfy_user_response.json().get('href')
+	print 'sptify_user_response:',sptfy_user_response.text
+	sptfy_user_url = sptfy_user_response.json().get('href')
         init_playlist_url = sptfy_user_url + '/playlists'
         data = {'name' : 'PlayPalate {}'.format(time.strftime("%m-%d-%Y")),
                 'public' : 'false'}
